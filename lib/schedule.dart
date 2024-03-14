@@ -26,6 +26,7 @@ class _ScheduleState extends State<Schedule> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Calendar Page'),
+        automaticallyImplyLeading: false,
       ),
       body: Center(
         child: TableCalendar(

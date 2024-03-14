@@ -90,14 +90,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 children: [
                   Image(
                     image: const AssetImage("lib/assets/images/playstore.png"),
-                    width: SizeConfig.safeBlockHorizontal! * 60,
+                    width: SizeConfig.blockSizeHorizontal! * 60,
                   ),
                   SizedBox(height: SizeConfig.blockSizeVertical! * 5), // Add some space between the image and text
                   Text(
                     "Attendance Apps",
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: SizeConfig.textType!.scale(36),
+                      fontSize: 36,
                       fontWeight: FontWeight.bold,
                     ),
                   ),

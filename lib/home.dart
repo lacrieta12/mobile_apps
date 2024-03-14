@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
+import 'package:muhammadiyah/absent_recap.dart';
 import 'package:muhammadiyah/profile_sub/profile_page.dart';
 import 'package:muhammadiyah/size_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -37,7 +39,6 @@ class _HomeState extends State<Home>{
   Color bgPrimary = const Color.fromARGB(255, 230, 230, 230);
 
   late SharedPreferences sharedPreferences;
-  String? namaHome = '';
   late StreamSubscription<bool> _keyboardVisibilitySubscription;
   late StreamSubscription<QuerySnapshot<Map<String, dynamic>>> _subscription;
 
@@ -48,11 +49,27 @@ class _HomeState extends State<Home>{
   String? jamKeluarIstirahat = '--:--:--';
   String? jamMasukIstirahat = '--:--:--';
 
+  String nama = '';
+  String fotoUrl = '';
+
+  bool f1 = false;
+  bool f2 = false;
+  bool f3 = false;
+  bool f4 = false;
+  bool f5 = false;
+  bool f6 = false;
+  bool _dataFetched = false;
+
+  String rfid_loc = "";
+  int rfid_no = 0;
+
   @override
   void initState() {
     super.initState();
     initializeSharedPreferences();
-    fetchData();
+    fetchAttendance();
+    fetchLocation();
+    // fetchData();
     // Listen to keyboard visibility changes
     _keyboardVisibilitySubscription = KeyboardVisibilityController().onChange.listen((bool isVisible) {
       // Execute the function to handle keyboard visibility after the frame is built
@@ -67,7 +84,7 @@ class _HomeState extends State<Home>{
         .snapshots()
         .listen((QuerySnapshot<Map<String, dynamic>> snapshot) {
       // Trigger data fetching whenever there's a change in the collection
-      fetchData();
+      fetchAttendance();
       initializeSharedPreferences();
     });
   }
@@ -96,16 +113,109 @@ class _HomeState extends State<Home>{
 
   Future<void> initializeSharedPreferences() async {
     sharedPreferences = await SharedPreferences.getInstance();
-    setState(() {
-      namaHome = sharedPreferences.getString("nama");
-    });
+    sharedPreferences.setBool("isPresent", isPresent);
+  }
+
+  Future<void> fetchLocation() async {
+    try{
+      sharedPreferences = await SharedPreferences.getInstance();
+      final String? idLogin = sharedPreferences.getString('idLogin');
+
+      if (idLogin != null) {
+        final QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
+            .collection('Pegawai')
+            .where('id_pegawai', isEqualTo: idLogin)
+            .get();
+
+        final DocumentSnapshot<Map<String, dynamic>> user = snapshot.docs.first;
+        final String rfid_code = user.get('rfid_code');
+        final String accessCode = rfid_code.substring(12, 16);
+
+        if (accessCode == "D111") {
+          setState(() {
+            f1 = true;
+          });
+        } else if (accessCode == "D222") {
+          setState(() {
+            f1 = true;
+            f2 = true;
+          });
+        } else if (accessCode == "D333") {
+          setState(() {
+            f1 = true;
+            f2 = true;
+            f3 = true;
+          });
+        } else if (accessCode == "D444") {
+          setState(() {
+            f1 = true;
+            f2 = true;
+            f3 = true;
+            f4 = true;
+          });
+        } else if (accessCode == "D555") {
+          setState(() {
+            f1 = true;
+            f2 = true;
+            f3 = true;
+            f4 = true;
+            f5 = true;
+          });
+        } else if (accessCode == "D666") {
+          setState(() {
+            f1 = true;
+            f2 = true;
+            f3 = true;
+            f4 = true;
+            f5 = true;
+            f6 = true;
+          });
+        } else {
+          print("No match Access Code");
+        }
+      } else {
+        print("No match idLogin");
+      }
+    } catch (error) {
+      print('Error fetching data: $error');
+    }
   }
 
   Future<void> fetchData() async {
     try {
       sharedPreferences = await SharedPreferences.getInstance();
+      final String? idLogin = sharedPreferences.getString("idLogin");
+
+      if (idLogin != null) {
+        final QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
+            .collection('Pegawai')
+            .where('id_pegawai', isEqualTo: idLogin)
+            .get();
+
+        if (snapshot.docs.isNotEmpty) {
+          final DocumentSnapshot<Map<String, dynamic>> user = snapshot.docs.first;
+          final String fetchNama = user.get('nama');
+          final String fetchFotoUrl = user.get('foto');
+          setState(() {
+            nama = fetchNama;
+            fotoUrl = fetchFotoUrl;
+          });
+          print("Fetch Complete");
+        } else {
+          print("Doc is empty");
+        }
+      } else {
+        print("idLogin is null");
+      }
+    } catch (error) {
+      print('Error fetching data: $error');
+    }
+  }
+
+  Future<void> fetchAttendance() async {
+    try {
+      sharedPreferences = await SharedPreferences.getInstance();
       final String? idLogin = sharedPreferences.getString('idLogin');
-      namaHome = sharedPreferences.getString("nama");
 
       if (idLogin != null) {
         final DateTime now = DateTime.now();
@@ -114,10 +224,43 @@ class _HomeState extends State<Home>{
 
         final QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
             .collection('Absensi')
-            .where('id', isEqualTo: idLogin)
+            .where('id_pegawai', isEqualTo: idLogin)
             .where('scan_jam', isGreaterThanOrEqualTo: Timestamp.fromDate(DateTime(now.year, now.month, now.day))) // Filter by today's date or later
             .where('scan_jam', isLessThan: Timestamp.fromDate(DateTime(now.year, now.month, now.day + 1))) // Filter by before tomorrow
             .get();
+
+        final DocumentSnapshot<Map<String, dynamic>> user = snapshot.docs.first;
+        final int rfid_no = user.get('rfid_no');
+
+        if (rfid_no == 1) {
+          setState(() {
+            rfid_loc = "Tempat Absensi";
+          });
+        } else if (rfid_no == 2) {
+          setState(() {
+            rfid_loc = "Lantai 1";
+          });
+        } else if (rfid_no == 3) {
+          setState(() {
+            rfid_loc = "Lantai 2";
+          });
+        } else if (rfid_no == 4) {
+          setState(() {
+            rfid_loc = "Lantai 3";
+          });
+        } else if (rfid_no == 5) {
+          setState(() {
+            rfid_loc = "Lantai 4";
+          });
+        } else if (rfid_no == 6) {
+          setState(() {
+            rfid_loc = "Lantai 5";
+          });
+        } else if (rfid_no == 7) {
+          setState(() {
+            rfid_loc = "Lantai 6";
+          });
+        }
 
         if (snapshot.docs.isNotEmpty) {
           for (final doc in snapshot.docs) {
@@ -141,6 +284,7 @@ class _HomeState extends State<Home>{
                     isPresent = true;
                     tanggal = date;
                   });
+                  sharedPreferences.setBool("isPresent", isPresent);
                 }
 
                 if (scanTime.hour >= 4 && scanTime.hour <= 10) {
@@ -172,6 +316,7 @@ class _HomeState extends State<Home>{
                       isPresent = true;
                       tanggal = date;
                     });
+                    sharedPreferences.setBool("isPresent", isPresent);
                   }
 
                   if (scanTime.hour >= 4 && scanTime.hour <= 10) {
@@ -247,7 +392,7 @@ class _HomeState extends State<Home>{
 
         // Add document with auto-generated ID and the data
         await absensiCollection.add({
-          'id': absensiData.id,
+          'id_pegawai': absensiData.id,
           'nama': absensiData.nama,
           'rfid_no': absensiData.rfidNo,
           'scan_jam': absensiData.scanJam,
@@ -319,29 +464,69 @@ class _HomeState extends State<Home>{
   @override
   Widget build(BuildContext context) {
     SizeConfig().init(context);
-    // Get current time
-    DateTime currentTime = DateTime.now().toUtc().add(const Duration(hours: 7)); // Adjust to UTC+7
-    // Check if current time is between 11:00 and 14:00
-    bool isDisabled = currentTime.hour >= 11 && currentTime.hour < 14;
-
-    print(currentTime);
 
     return Scaffold(
       backgroundColor: bgPrimary,
       appBar: AppBar(
         backgroundColor: bgPrimary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              fetchAttendance();
+              fetchLocation();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Data Anda Telah Diperbaharui'),
+                ),
+              );
+            },
+          ),
+        ],
+        automaticallyImplyLeading: false,
         title: const Text('Beranda'),
         titleTextStyle: TextStyle(
           fontWeight: FontWeight.bold,
           color: Colors.black,
-          fontSize: SizeConfig.textType!.scale(34),
+          fontSize: 30,
         ),
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.only(bottom: keyboardHeight),
-        child: Column(
-          children: [
-            Center(
+      body: _dataFetched
+          ? Home()
+          : FutureBuilder<void>(
+          future: Future.wait([
+            fetchData(),
+          ]),
+          builder: (context, AsyncSnapshot<void> snapshot) {
+            if (snapshot.hasData) {
+              _dataFetched = true;
+              return Home();
+            } else {
+              return Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+          }
+      ),
+    );
+  }
+
+  Widget Home() {
+    SizeConfig().init(context);
+    initializeDateFormatting('id');
+    // Get current time
+    DateTime currentTime = DateTime.now().toUtc().add(const Duration(hours: 7));
+    DateTime currentDate = DateTime.now();
+    // Check if current time is between 11:00 and 14:00
+    bool isDisabled = currentTime.hour >= 11 && currentTime.hour < 14;
+    DateFormat dateFormatter = DateFormat('EEE, dd MMM yyyy', 'id');
+    String date = dateFormatter.format(currentDate);
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(bottom: keyboardHeight),
+      child: Column(
+        children: [
+          Center(
               child: Column(
                 children: [
                   Container(
@@ -349,29 +534,20 @@ class _HomeState extends State<Home>{
                     width: SizeConfig.blockSizeHorizontal! * 100,
                     decoration: const BoxDecoration(
                       color: Colors.white,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 10,
-                          offset: Offset(2, 2),
-                        ),
-                      ],
                     ),
                     child: Center(
-                      child: Column(
-                        children: [
-                          Container(
-                            height: SizeConfig.safeBlockHorizontal! * 25,
-                            width: SizeConfig.safeBlockHorizontal! * 25,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.black,
-                                width: SizeConfig.blockSizeHorizontal! * 1,
+                        child: Column(
+                          children: [
+                            Container(
+                              height: SizeConfig.blockSizeVertical! * 14,
+                              width: SizeConfig.blockSizeVertical! * 14,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.black,
+                                  width: SizeConfig.blockSizeHorizontal! * 1,
+                                ),
                               ),
-                            ),
-                            child: Hero(
-                              tag: "profilePhoto",
                               child: ClipOval(
                                 child: GestureDetector(
                                   onTap: () {
@@ -381,382 +557,567 @@ class _HomeState extends State<Home>{
                                       ),
                                     );
                                   },
-                                  child: Image.asset(
-                                    "lib/assets/images/profpic.png",
+                                  child: Image.network(
+                                    fotoUrl,
                                     fit: BoxFit.cover,
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                          SizedBox(
-                            height: SizeConfig.blockSizeVertical! * 1,
-                          ),
-                          Text(
-                            "Selamat Datang",
-                            style: TextStyle(
-                              fontSize: SizeConfig.textType!.scale(22),
-                              fontWeight: FontWeight.bold,
+                            SizedBox(
+                              height: SizeConfig.blockSizeVertical! * 1,
                             ),
-                          ),
-                          Text(
-                            namaHome ?? 'nama',
-                            style: TextStyle(
-                              fontSize: SizeConfig.textType!.scale(22),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(
-                            height: SizeConfig.blockSizeVertical! * 1,
-                          ),
-                          RichText(
-                            text: TextSpan(
+                            Text(
+                              "Selamat Datang",
                               style: TextStyle(
-                                fontSize: SizeConfig.textType!.scale(18),
-                                color: Colors.black, // Default color for the text
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
                               ),
-                              children: [
-                                TextSpan(
-                                  text: isPresent ? "Status Absensi: " : "Status Absensi:", // First part of the text
-                                ),
-                                TextSpan(
-                                  text: isPresent ? " Hadir ($tanggal)" : " Tidak Hadir", // Second part of the text
-                                  style: TextStyle(
-                                    color: isPresent ? Colors.green : Colors.red, // Color for the second part of the text
-                                  ),
-                                ),
-                              ],
                             ),
-                          ),
-                        ],
-                      )
+                            Text(
+                              nama,
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(
+                              height: SizeConfig.blockSizeVertical! * 1,
+                            ),
+                            RichText(
+                              text: TextSpan(
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.black, // Default color for the text
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: isPresent ? "Status Absensi: " : "Status Absensi:", // First part of the text
+                                  ),
+                                  TextSpan(
+                                    text: isPresent ? " Hadir ($tanggal)" : " Tidak Hadir", // Second part of the text
+                                    style: TextStyle(
+                                      color: isPresent ? Colors.green : Colors.red, // Color for the second part of the text
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        )
                     ),
                   ),
                 ],
               )
-            ),
-            SizedBox(
-              height: SizeConfig.blockSizeVertical! * 2.5,
-            ),
-            Container(
-              height: SizeConfig.blockSizeVertical! * 10,
-              width: SizeConfig.blockSizeHorizontal! * 100,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 10,
-                    offset: Offset(2, 2),
+          ),
+          SizedBox(
+            height: SizeConfig.blockSizeVertical! * 1,
+          ),
+          Row(
+            children: [
+              Container(
+                height: SizeConfig.blockSizeVertical! * 15,
+                width: SizeConfig.blockSizeHorizontal! * 50,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(
+                    right: BorderSide(color: Color.fromARGB(255, 134, 134, 134)),
                   ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Expanded(
-                    flex : 3,
-                    child: Column(
-                      children: [
-                        Container(
-                          height: SizeConfig.blockSizeVertical! * 7,
-                          width: SizeConfig.blockSizeVertical! * 7,
-                          child: Icon(
-                            Icons.access_time,
-                            color: Colors.green,
-                            size: SizeConfig.blockSizeVertical! * 7,
-                          ),
-                        ),
-                        Text(
-                          "Jam Masuk",
-                          style: TextStyle(
-                            fontSize: SizeConfig.textType!.scale(16),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    )
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      height: SizeConfig.blockSizeVertical! * 5,
-                      width: SizeConfig.blockSizeHorizontal! * 7,
-                    )
-                  ),
-                  Expanded(
-                    flex : 3,
-                    child: Text(
-                      isPresent ? "$jamMasuk" : "--:--:--",
-                      style: TextStyle(
-                        fontSize: SizeConfig.textType!.scale(30),
-                        fontWeight: FontWeight.bold,
+                ),
+                child: Center(
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: SizeConfig.blockSizeVertical! * 1.5,
                       ),
-                    ),
+                      Text(
+                        "Lokasi Terakhir",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 22,
+                        ),
+                      ),
+                      SizedBox(
+                        height: SizeConfig.blockSizeVertical! * 2,
+                      ),
+                      Text(
+                        isPresent ? "$rfid_loc" : "-",
+                        style: TextStyle(
+                          fontSize: 20,
+                        ),
+                      )
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-            SizedBox(
-              height: SizeConfig.blockSizeVertical! * 2.5,
-            ),
-            Container(
-              height: SizeConfig.blockSizeVertical! * 10,
-              width: SizeConfig.blockSizeHorizontal! * 100,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 10,
-                    offset: Offset(2, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Expanded(
-                      flex : 3,
-                      child: Column(
+              Container(
+                height: SizeConfig.blockSizeVertical! * 15,
+                width: SizeConfig.blockSizeHorizontal! * 50,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                ),
+                child: Center(
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: SizeConfig.blockSizeVertical! * 0.5,
+                      ),
+                      Text(
+                        "Akses Lantai",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 22,
+                        ),
+                      ),
+                      SizedBox(
+                        height: SizeConfig.blockSizeVertical! * 1,
+                      ),
+                      Row(
                         children: [
                           Container(
-                            height: SizeConfig.blockSizeVertical! * 7,
-                            width: SizeConfig.blockSizeVertical! * 7,
-                            child: Icon(
-                              Icons.access_time,
-                              color: Colors.red,
-                              size: SizeConfig.blockSizeVertical! * 7,
+                            height: SizeConfig.blockSizeVertical! * 10,
+                            width: SizeConfig.blockSizeHorizontal! * 25,
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              border: Border(
+                                right: BorderSide(color: Color.fromARGB(255, 134, 134, 134)),
+                              ),
+                            ),
+                            child: floorAccess(
+                                "Lantai 1",
+                                "Lantai 2",
+                                "Lantai 3",
+                                f1 ? Icons.check_box : Icons.do_not_disturb_on,
+                                f2 ? Icons.check_box : Icons.do_not_disturb_on,
+                                f3 ? Icons.check_box : Icons.do_not_disturb_on,
+                                f1 ? Colors.green : Colors.red,
+                                f2 ? Colors.green : Colors.red,
+                                f3 ? Colors.green : Colors.red
                             ),
                           ),
-                          Text(
-                            "Jam Keluar",
-                            style: TextStyle(
-                              fontSize: SizeConfig.textType!.scale(16),
-                              fontWeight: FontWeight.bold,
+                          Container(
+                            height: SizeConfig.blockSizeVertical! * 10,
+                            width: SizeConfig.blockSizeHorizontal! * 25,
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                            ),
+                            child: floorAccess(
+                                "Lantai 4",
+                                "Lantai 5",
+                                "Lantai 6",
+                                f4 ? Icons.check_box : Icons.do_not_disturb_on,
+                                f5 ? Icons.check_box : Icons.do_not_disturb_on,
+                                f6 ? Icons.check_box : Icons.do_not_disturb_on,
+                                f4 ? Colors.green : Colors.red,
+                                f5 ? Colors.green : Colors.red,
+                                f6 ? Colors.green : Colors.red
                             ),
                           ),
                         ],
                       )
-                  ),
-                  Expanded(
-                      flex: 1,
-                      child: Container(
-                        height: SizeConfig.blockSizeVertical! * 5,
-                        width: SizeConfig.blockSizeHorizontal! * 7,
-                      )
-                  ),
-                  Expanded(
-                    flex : 3,
-                    child: Text(
-                      isPresent ? "$jamKeluar" : "--:--:--",
-                      style: TextStyle(
-                        fontSize: SizeConfig.textType!.scale(30),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(
-              height: SizeConfig.blockSizeVertical! * 2.5,
-            ),
-            Container(
-              height: SizeConfig.blockSizeVertical! * 15,
-              width: SizeConfig.blockSizeHorizontal! * 100,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 10,
-                    offset: Offset(2, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  SizedBox(
-                    height: SizeConfig.blockSizeVertical! * 1,
-                  ),
-                  Text(
-                    "Jam Istirahat",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: SizeConfig.textType!.scale(24),
-                    ),
-                  ),
-                  SizedBox(
-                    height: SizeConfig.blockSizeVertical! * 1,
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: Center(
-                          child: Column(
-                            children: [
-                              Text(
-                                "Keluar",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: SizeConfig.textType!.scale(22),
-                                ),
-                              ),
-                              Text(
-                                isPresent ? "$jamKeluarIstirahat" : "--:--:--",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: SizeConfig.textType!.scale(22),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 1,
-                        child: Container(
-                          height: SizeConfig.blockSizeVertical! * 1,
-                        ),
-                      ),
-                      Expanded(
-                        flex: 3,
-                        child: Center(
-                          child: Column(
-                            children: [
-                              Text(
-                                "Masuk",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: SizeConfig.textType!.scale(22),
-                                ),
-                              ),
-                              Text(
-                                isPresent ? "$jamMasukIstirahat" : "--:--:--",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: SizeConfig.textType!.scale(22),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
                     ],
                   ),
-                ],
+                ),
               ),
+            ],
+          ),
+          SizedBox(
+            height: SizeConfig.blockSizeVertical! * 1,
+          ),
+          Container(
+            height: SizeConfig.blockSizeVertical! * 32,
+            width: SizeConfig.blockSizeHorizontal! * 100,
+            decoration: const BoxDecoration(
+              color: Colors.white,
             ),
-            SizedBox(
-              height: SizeConfig.blockSizeVertical! * 2.5,
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Column(
               children: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(30)),
-                    ),
-                  ),
-                  onPressed: () {
-                    if (isDisabled) {
-                      _showAttendanceButtonDialogTrue("Pemberitahuan Istirahat", "Apakah anda ingin beristirahat?");
-                    } else {
-                      _showAttendanceButtonDialogFalse(context, "Belum waktunya untuk istirahat");
-                    }
-                  },
-                  child: SizedBox(
-                    width: SizeConfig.safeBlockHorizontal! * 35,
-                    height: SizeConfig.blockSizeVertical! * 6,
-                    child: Center(
-                      child: Text(
-                        "Istirahat",
-                        style: TextStyle(
-                          fontSize: SizeConfig.textType!.scale(22),
-                          color: Colors.white,
-                          letterSpacing: 2,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                SizedBox(
+                  height: SizeConfig.blockSizeVertical! * 1,
+                ),
+                Text(
+                  "Kehadiran",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24,
                   ),
                 ),
                 SizedBox(
-                  width: SizeConfig.blockSizeHorizontal! * 5,
+                  height: SizeConfig.blockSizeVertical! * 1,
                 ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(30)),
+                Container(
+                  height: SizeConfig.blockSizeVertical! * 5,
+                  width: SizeConfig.blockSizeHorizontal! * 90,
+                  decoration: BoxDecoration(
+                    color: const Color.fromARGB(255, 239, 239, 239),
+                    border: Border.all(
+                      color: const Color.fromARGB(255, 134, 134, 134),
                     ),
                   ),
-                  onPressed: () {
-                    fetchData();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Data Anda Telah Diperbaharui'),
-                      ),
-                    );
-                  },
-                  child: SizedBox(
-                    width: SizeConfig.safeBlockHorizontal! * 35,
-                    height: SizeConfig.blockSizeVertical! * 6,
-                    child: Center(
-                      child: Text(
-                        "Perbaharui",
-                        style: TextStyle(
-                          fontSize: SizeConfig.textType!.scale(22),
-                          color: Colors.white,
-                          letterSpacing: 2,
-                          fontWeight: FontWeight.bold,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.only(left: SizeConfig.blockSizeHorizontal! * 3),
+                        child: Row(
+                          children: [
+                            RichText(
+                              text: TextSpan(
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                                children: [
+                                  const TextSpan(
+                                    text: "Hariini ",
+                                  ),
+                                  TextSpan(
+                                    text: "($date)",
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+                      PopupMenuButton(
+                        icon: Icon(Icons.more_horiz),
+                        itemBuilder: (BuildContext context) => <PopupMenuEntry>[
+                          PopupMenuItem(
+                            value: 1,
+                            textStyle: TextStyle(
+                              fontSize: 18,
+                            ),
+                            child: Text('Lihat Rekap Absensi'),
+                          ),
+                        ],
+                        onSelected: (value) {
+                          if (value == 1) {
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (context) => const absentRecap(),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  height: SizeConfig.blockSizeVertical! * 18,
+                  width: SizeConfig.blockSizeHorizontal! * 90,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: const Color.fromARGB(255, 134, 134, 134),
+                    ),
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(5),
+                    ),
+                  ),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: SizeConfig.blockSizeVertical! * 1,
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: Text(
+                                "Jam Masuk",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 1,
+                              child: Text(
+                                "Jam Keluar",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: Text(
+                                isPresent ? "$jamMasuk" : "--:--:--",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  color: isPresent ? Colors.green : Colors.black,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 1,
+                              child: Text(
+                                isPresent ? "$jamKeluar" : "--:--:--",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  color: isPresent ? Colors.red : Colors.black,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(
+                          height: SizeConfig.blockSizeVertical! * 0.5,
+                        ),
+                        Text(
+                          "Istirahat",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(
+                          height: SizeConfig.blockSizeVertical! * 0.5,
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: Text(
+                                "Keluar",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 1,
+                              child: Text(
+                                "Masuk",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: Text(
+                                isPresent ? "$jamKeluarIstirahat" : "--:--:--",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  color: isPresent ? Colors.green : Colors.black,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 1,
+                              child: Text(
+                                isPresent ? "$jamMasukIstirahat" : "--:--:--",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  color: isPresent ? Colors.red : Colors.black,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ],
             ),
-            SizedBox(
-              height: SizeConfig.blockSizeVertical! * 2.5,
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white60,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(30)),
+          ),
+          SizedBox(
+            height: SizeConfig.blockSizeVertical! * 2.5,
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(30)),
+                  ),
                 ),
-              ),
-              onPressed: () {
-                if (isDisabled) {
-                  _showAttendanceButtonDialogFalse(context, "Belum waktunya untuk melakukan absensi");
-                } else {
-                  _showAttendanceButtonDialogTrue("Pemberitahuan Absensi", "Apakah anda ingin melakukan absensi?");
-                }
-              },
-              child: SizedBox(
-                width: SizeConfig.safeBlockHorizontal! * 45,
-                height: SizeConfig.blockSizeVertical! * 6,
-                child: Center(
-                  child: Text(
-                    "Absensi Manual",
-                    style: TextStyle(
-                      fontSize: SizeConfig.textType!.scale(22),
-                      color: Colors.black,
-                      letterSpacing: 2,
-                      fontWeight: FontWeight.bold,
+                onPressed: () {
+                  if (isDisabled) {
+                    _showAttendanceButtonDialogTrue("Pemberitahuan Istirahat", "Apakah anda ingin beristirahat?");
+                  } else {
+                    _showAttendanceButtonDialogFalse(context, "Belum waktunya untuk istirahat");
+                  }
+                },
+                child: SizedBox(
+                  width: SizeConfig.blockSizeHorizontal! * 35,
+                  height: SizeConfig.blockSizeVertical! * 6,
+                  child: Center(
+                    child: Text(
+                      "Istirahat",
+                      style: TextStyle(
+                        fontSize: 22,
+                        color: Colors.white,
+                        letterSpacing: 2,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
               ),
+              SizedBox(
+                width: SizeConfig.blockSizeHorizontal! * 5,
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(30)),
+                  ),
+                ),
+                onPressed: () {
+                  if (isDisabled) {
+                    _showAttendanceButtonDialogFalse(context, "Belum waktunya untuk melakukan absensi");
+                  } else {
+                    _showAttendanceButtonDialogTrue("Pemberitahuan Absensi", "Apakah anda ingin melakukan absensi?");
+                  }
+                },
+                child: SizedBox(
+                  width: SizeConfig.blockSizeHorizontal! * 35,
+                  height: SizeConfig.blockSizeVertical! * 6,
+                  child: Center(
+                    child: Text(
+                      "Absensi Manual",
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: Colors.white,
+                        letterSpacing: 2,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget floorAccess(
+      String message1,
+      String message2,
+      String message3,
+      IconData icon1,
+      IconData icon2,
+      IconData icon3,
+      Color color1,
+      Color color2,
+      Color color3
+      ) {
+    SizeConfig().init(context);
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Padding(
+              padding: EdgeInsets.only(left: SizeConfig.blockSizeHorizontal! * 1.5),
+              child: Text(
+                message1,
+                style: TextStyle(
+                  fontSize: 18,
+                ),
+              ),
+            ),
+            SizedBox(
+              width: SizeConfig.blockSizeHorizontal! * 2,
+            ),
+            Padding(
+              padding: EdgeInsets.only(left: SizeConfig.blockSizeHorizontal! * 1.5),
+              child: Icon(
+                icon1,
+                color: color1,
+                size: SizeConfig.blockSizeHorizontal! * 5,
+              ),
             ),
           ],
         ),
-      ),
+        SizedBox(
+          height: SizeConfig.blockSizeHorizontal! * 1,
+        ),
+        Row(
+          children: [
+            Padding(
+              padding: EdgeInsets.only(left: SizeConfig.blockSizeHorizontal! * 1.5),
+              child: Text(
+                message2,
+                style: TextStyle(
+                  fontSize: 18,
+                ),
+              ),
+            ),
+            SizedBox(
+              width: SizeConfig.blockSizeHorizontal! * 2,
+            ),
+            Padding(
+              padding: EdgeInsets.only(left: SizeConfig.blockSizeHorizontal! * 1.5),
+              child: Icon(
+                icon2,
+                color: color2,
+                size: SizeConfig.blockSizeHorizontal! * 5,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(
+          height: SizeConfig.blockSizeHorizontal! * 1,
+        ),
+        Row(
+          children: [
+            Padding(
+              padding: EdgeInsets.only(left: SizeConfig.blockSizeHorizontal! * 1.5),
+              child: Text(
+                message3,
+                style: TextStyle(
+                  fontSize: 18,
+                ),
+              ),
+            ),
+            SizedBox(
+              width: SizeConfig.blockSizeHorizontal! * 2,
+            ),
+            Padding(
+              padding: EdgeInsets.only(left: SizeConfig.blockSizeHorizontal! * 1.5),
+              child: Icon(
+                icon3,
+                color: color3,
+                size: SizeConfig.blockSizeHorizontal! * 5,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

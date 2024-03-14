@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:bcrypt/bcrypt.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:muhammadiyah/forgot_password.dart';
 import 'package:muhammadiyah/navbar.dart';
+import 'package:muhammadiyah/new_account.dart';
 import 'package:muhammadiyah/size_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -89,7 +91,7 @@ class _LoginState extends State<Login> {
 
       final QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
           .collection('Pegawai')
-          .where('id', isEqualTo: id)
+          .where('id_pegawai', isEqualTo: id)
           .limit(1)
           .get();
 
@@ -99,19 +101,34 @@ class _LoginState extends State<Login> {
       }
 
       final DocumentSnapshot<Map<String, dynamic>> user = snapshot.docs.first;
-      final String correctPassword = user.get('password');
+      final String correctPasswordHash = user.get('password');
+      final bool isDefaultPassword = correctPasswordHash == '12345678';
 
-      if (password != correctPassword) {
+      if (isDefaultPassword) {
+        final String idLogin = user.get('id_pegawai');
+        sharedPreferences = await SharedPreferences.getInstance();
+        sharedPreferences.setString("idLogin", idLogin);
+        // Redirect to the new account page for changing the default password
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const NewAccount()),
+        );
+        return;
+      }
+      // Check if the entered password matches the stored hashed password
+      final bool isPasswordCorrect = BCrypt.checkpw(password, correctPasswordHash);
+      if (!isPasswordCorrect) {
         _showPopupMessage(context, "Password salah");
         return;
       }
 
       // Get all user data
-      final String idLogin = user.get('id');
+      final String idLogin = user.get('id_pegawai');
       final String nama = user.get('nama');
       final String email = user.get('email');
       final String jabatan = user.get('jabatan');
       final String departemen = user.get('departemen');
+      final String fotoUrl = user.get('foto');
 
       sharedPreferences = await SharedPreferences.getInstance();
 
@@ -121,6 +138,7 @@ class _LoginState extends State<Login> {
       sharedPreferences.setString("email", email);
       sharedPreferences.setString("jabatan", jabatan);
       sharedPreferences.setString("departemen", departemen);
+      sharedPreferences.setString("fotoUrl", fotoUrl);
 
       // Navigate to Home page if login is successful
       Navigator.pushReplacement(
@@ -154,7 +172,7 @@ class _LoginState extends State<Login> {
                       child: Text(
                         "Selamat Datang Kembali!",
                         style: TextStyle(
-                          fontSize: SizeConfig.textType!.scale(24),
+                          fontSize: 24,
                           color: Colors.black,
                           fontWeight: FontWeight.bold,
                         ),
@@ -203,7 +221,7 @@ class _LoginState extends State<Login> {
                 child: Text(
                   "Lupa Password?",
                   style: TextStyle(
-                    fontSize: SizeConfig.textType!.scale(18),
+                    fontSize: 18,
                     color: Colors.blue, // Change color to indicate it's clickable
                   ),
                 ),
@@ -230,7 +248,7 @@ class _LoginState extends State<Login> {
                         child: Text(
                           "MASUK",
                           style: TextStyle(
-                            fontSize: SizeConfig.textType!.scale(22),
+                            fontSize: 22,
                             color: Colors.white,
                             letterSpacing: 2,
                             fontWeight: FontWeight.bold,
@@ -263,7 +281,7 @@ class _LoginState extends State<Login> {
         child: Text(
           title,
           style: TextStyle(
-            fontSize: SizeConfig.textType!.scale(18),
+            fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -290,7 +308,7 @@ class _LoginState extends State<Login> {
           BoxShadow(
             color: Colors.black26,
             blurRadius: SizeConfig.blockSizeVertical! * 2,
-            offset: Offset(2, 2),
+            offset: const Offset(2, 2),
           ),
         ],
       ),

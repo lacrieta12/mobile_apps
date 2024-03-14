@@ -31,8 +31,8 @@ class Navbar_Content extends StatelessWidget {
           label: 'Jadwal',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.person),
-          label: 'Profil',
+          icon: Icon(Icons.more_horiz),
+          label: 'Lainnya',
         ),
       ],
     );

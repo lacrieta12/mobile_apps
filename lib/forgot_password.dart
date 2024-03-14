@@ -88,7 +88,7 @@ class _ForgotPasswordState extends State<ForgotPassword> {
       final QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
           .collection('Pegawai')
           .where('nama', isEqualTo: name)
-          .where('id', isEqualTo: id)
+          .where('id_pegawai', isEqualTo: id)
           .where('email', isEqualTo: email)
           .limit(1)
           .get();
@@ -148,7 +148,7 @@ class _ForgotPasswordState extends State<ForgotPassword> {
                     child: Text(
                       "Silahkan Masukkan Data Akun Anda!",
                       style: TextStyle(
-                        fontSize: SizeConfig.textType!.scale(24),
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                       )
                     ),
@@ -169,9 +169,9 @@ class _ForgotPasswordState extends State<ForgotPassword> {
             fieldTitle("EMAIL"),
             customField("Masukkan Email Anda", emailController, false, Icons.email),
             Container(
-              height: SizeConfig.safeBlockVertical! * 8,
-              width: SizeConfig.safeBlockHorizontal! * 75,
-              margin: EdgeInsets.only(top: SizeConfig.safeBlockVertical! * 2),
+              height: SizeConfig.blockSizeVertical! * 8,
+              width: SizeConfig.blockSizeHorizontal! * 75,
+              margin: EdgeInsets.only(top: SizeConfig.blockSizeVertical! * 2),
               child: Center(
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -190,7 +190,7 @@ class _ForgotPasswordState extends State<ForgotPassword> {
                       child: Text(
                         "LUPA PASSWORD",
                         style: TextStyle(
-                          fontSize: SizeConfig.textType!.scale(20),
+                          fontSize: 18,
                           color: Colors.white,
                           letterSpacing: 2,
                           fontWeight: FontWeight.bold,
@@ -205,9 +205,9 @@ class _ForgotPasswordState extends State<ForgotPassword> {
               height: SizeConfig.blockSizeVertical! * 2,
             ),
             Container(
-              height: SizeConfig.safeBlockVertical! * 8,
-              width: SizeConfig.safeBlockHorizontal! * 75,
-              margin: EdgeInsets.only(top: SizeConfig.safeBlockVertical! * 2),
+              height: SizeConfig.blockSizeVertical! * 8,
+              width: SizeConfig.blockSizeHorizontal! * 75,
+              margin: EdgeInsets.only(top: SizeConfig.blockSizeVertical! * 2),
               child: Center(
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -234,7 +234,7 @@ class _ForgotPasswordState extends State<ForgotPassword> {
                       child: Text(
                         "KEMBALI",
                         style: TextStyle(
-                          fontSize: SizeConfig.textType!.scale(20),
+                          fontSize: 18,
                           color: Colors.black,
                           letterSpacing: 2,
                           fontWeight: FontWeight.bold,

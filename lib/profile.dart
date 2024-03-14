@@ -23,11 +23,13 @@ class _ProfileState extends State<Profile> {
   Color bgPrimary = const Color.fromARGB(255, 230, 230, 230);
 
   late SharedPreferences sharedPreferences;
-  String? nama = '';
-  String? jabatan = '';
-  String? departemen = '';
+  String nama = '';
+  String jabatan = '';
+  String departemen = '';
+  String fotoUrl = '';
 
   late StreamSubscription<bool> _keyboardVisibilitySubscription;
+  bool _dataFetched = false;
 
   @override
   void initState() {
@@ -52,28 +54,30 @@ class _ProfileState extends State<Profile> {
 
   Future<void> initializeSharedPreferences() async {
     sharedPreferences = await SharedPreferences.getInstance();
-    setState(() {
-      nama = sharedPreferences.getString("nama");
-      jabatan = sharedPreferences.getString("jabatan");
-      departemen = sharedPreferences.getString("departemen");
-    });
   }
 
   Future<void> fetchData() async {
     try {
       sharedPreferences = await SharedPreferences.getInstance();
       final String? idLogin = sharedPreferences.getString('idLogin');
-      nama = sharedPreferences.getString("nama");
 
       if (idLogin != null) {
         final QuerySnapshot<Map<String, dynamic>> snapshot =
-        await FirebaseFirestore.instance.collection('Pegawai').where('id', isEqualTo: idLogin).get();
+        await FirebaseFirestore.instance.collection('Pegawai').where('id_pegawai', isEqualTo: idLogin).get();
 
         final DocumentSnapshot<Map<String, dynamic>> user = snapshot.docs.first;
 
-        nama = user.get('nama');
-        jabatan = user.get('jabatan');
-        departemen = user.get('departemen');
+        final String fetchNama = user.get('nama');
+        final String fetchJabatan = user.get('jabatan');
+        final String fetchDepartemen = user.get('departemen');
+        final String fetchFotoUrl = user.get('foto');
+
+        setState(() {
+          nama = fetchNama;
+          jabatan = fetchJabatan;
+          departemen = fetchDepartemen;
+          fotoUrl = fetchFotoUrl;
+        });
 
         } else {
           print('No data found for idLogin: $idLogin');
@@ -107,6 +111,7 @@ class _ProfileState extends State<Profile> {
       backgroundColor: bgPrimary,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
+        automaticallyImplyLeading: false,
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -123,245 +128,263 @@ class _ProfileState extends State<Profile> {
         titleTextStyle: TextStyle(
           fontWeight: FontWeight.bold,
           color: Colors.white,
-          fontSize: SizeConfig.textType!.scale(34),
+          fontSize: 30,
         ),
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.only(bottom: keyboardHeight),
-        child: Column(
-          children: [
-            Stack(
-              children: [
-                Container(
-                  height: SizeConfig.blockSizeVertical! * 10,
-                  width: SizeConfig.blockSizeHorizontal! * 100,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Color(0xFF015C8F), // Start color
-                        Color(0xFF001645), // End color
-                      ],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 10,
-                        offset: Offset(2, 2),
-                      ),
+      body: _dataFetched
+        ? Profile()
+        : FutureBuilder<void>(
+          future: Future.wait([
+            fetchData(),
+          ]),
+          builder: (context, AsyncSnapshot<void> snapshot) {
+            if (snapshot.hasData) {
+              _dataFetched = true;
+              return Profile();
+            } else {
+              return Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+          }
+      ),
+    );
+  }
+
+  Widget Profile() {
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(bottom: keyboardHeight),
+      child: Column(
+        children: [
+          Stack(
+            children: [
+              Container(
+                height: SizeConfig.blockSizeVertical! * 10,
+                width: SizeConfig.blockSizeHorizontal! * 100,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF015C8F), // Start color
+                      Color(0xFF001645), // End color
                     ],
                   ),
-                ),
-                Container(
-                  height: SizeConfig.blockSizeVertical! * 25,
-                  width: SizeConfig.blockSizeHorizontal! * 100,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.rectangle,
-                    color: Colors.transparent,
-                  ),
-                ),
-                Positioned(
-                  left: SizeConfig.safeBlockHorizontal! * 7,
-                  top: SizeConfig.blockSizeVertical! * 1.5,
-                  child: Container(
-                    height: SizeConfig.safeBlockHorizontal! * 25,
-                    width: SizeConfig.safeBlockHorizontal! * 25,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white,
-                        width: SizeConfig.blockSizeHorizontal! * 1,
-                      ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 10,
+                      offset: Offset(2, 2),
                     ),
-                    child: Hero(
-                      tag: "profilePhoto",
-                      child: ClipOval(
-                        child: Image.asset(
-                          "lib/assets/images/profpic.png",
-                          fit: BoxFit.cover,
-                        ),
-                      ),
+                  ],
+                ),
+              ),
+              Container(
+                height: SizeConfig.blockSizeVertical! * 25,
+                width: SizeConfig.blockSizeHorizontal! * 100,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.rectangle,
+                  color: Colors.transparent,
+                ),
+              ),
+              Positioned(
+                left: SizeConfig.blockSizeHorizontal! * 5,
+                top: SizeConfig.blockSizeVertical! * 1.5,
+                child: Container(
+                  height: SizeConfig.blockSizeVertical! * 14,
+                  width: SizeConfig.blockSizeVertical! * 14,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white,
+                      width: SizeConfig.blockSizeHorizontal! * 1,
                     ),
                   ),
-                ),
-                Positioned(
-                  left: SizeConfig.safeBlockHorizontal! * 3,
-                  top: SizeConfig.blockSizeVertical! * 16,
-                  child: Text(
-                    nama ?? 'NAMA',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: SizeConfig.textType!.scale(26),
+                  child: ClipOval(
+                    child: Image.network(
+                      fotoUrl,
+                      fit: BoxFit.cover,
                     ),
                   ),
                 ),
-                Positioned(
-                  left: SizeConfig.safeBlockHorizontal! * 3,
-                  top: SizeConfig.blockSizeVertical! * 19,
-                  child: Text(
-                    jabatan ?? "JABATAN",
-                    style: TextStyle(
-                      fontSize: SizeConfig.textType!.scale(22),
-                    ),
+              ),
+              Positioned(
+                left: SizeConfig.blockSizeHorizontal! * 3,
+                top: SizeConfig.blockSizeVertical! * 16,
+                child: Text(
+                  nama,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 26,
                   ),
                 ),
-                Positioned(
-                  left: SizeConfig.safeBlockHorizontal! * 3,
-                  top: SizeConfig.blockSizeVertical! * 21,
-                  child: Text(
-                    departemen ?? "departemen",
-                    style: TextStyle(
-                      fontSize: SizeConfig.textType!.scale(22),
-                    ),
+              ),
+              Positioned(
+                left: SizeConfig.blockSizeHorizontal! * 3,
+                top: SizeConfig.blockSizeVertical! * 19.5,
+                child: Text(
+                  jabatan,
+                  style: TextStyle(
+                    fontSize: 22,
                   ),
                 ),
-              ],
-            ),
-            SizedBox(
-              height: SizeConfig.blockSizeVertical! * 3,
-            ),
-            ListTile(
-              leading: Container(
-                height: SizeConfig.blockSizeHorizontal! * 8,
-                width: SizeConfig.blockSizeHorizontal! * 8,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color(0xFF29C08B),
-                ),
-                child: const Icon(
-                  Icons.person,
-                  color: Colors.white,
-                ),
               ),
-              title: Text(
-                'Profil Saya',
-                style: TextStyle(
-                  fontSize: SizeConfig.textType!.scale(24),
-                ),
-              ),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (context) => Profile_page(), // Pass the page widget class itself
+              Positioned(
+                left: SizeConfig.blockSizeHorizontal! * 3,
+                top: SizeConfig.blockSizeVertical! * 22,
+                child: Text(
+                  departemen,
+                  style: TextStyle(
+                    fontSize: 22,
                   ),
-                );
-              },
-            ),
-            Divider(
-              height: SizeConfig.blockSizeVertical! * 3,
-            ),
-            ListTile(
-              leading: Container(
-                height: SizeConfig.blockSizeHorizontal! * 8,
-                width: SizeConfig.blockSizeHorizontal! * 8,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color(0xFF29C08B),
-                ),
-                child: const Icon(
-                  Icons.settings,
-                  color: Colors.white,
                 ),
               ),
-              title: Text(
-                'Pengaturan',
-                style: TextStyle(
-                  fontSize: SizeConfig.textType!.scale(24),
-                ),
+            ],
+          ),
+          SizedBox(
+            height: SizeConfig.blockSizeVertical! * 3,
+          ),
+          ListTile(
+            leading: Container(
+              height: SizeConfig.blockSizeHorizontal! * 8,
+              width: SizeConfig.blockSizeHorizontal! * 8,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFF29C08B),
               ),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () {
-                // Navigate to the Settings page
-              },
-            ),
-            Divider(
-              height: SizeConfig.blockSizeVertical! * 3,
-            ),
-            ListTile(
-              leading: Container(
-                height: SizeConfig.blockSizeHorizontal! * 8,
-                width: SizeConfig.blockSizeHorizontal! * 8,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color(0xFF29C08B),
-                ),
-                child: const Icon(
-                  Icons.policy,
-                  color: Colors.white,
-                ),
+              child: const Icon(
+                Icons.person,
+                color: Colors.white,
               ),
-              title: Text(
-                'Syarat & ketentuan',
-                style: TextStyle(
-                  fontSize: SizeConfig.textType!.scale(24),
-                ),
+            ),
+            title: Text(
+              'Profil Saya',
+              style: TextStyle(
+                fontSize: 22,
               ),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () {
-                // Navigate to the Terms & Conditions page
-              },
             ),
-            Divider(
-              height: SizeConfig.blockSizeVertical! * 3,
-            ),
-            ListTile(
-              leading: Container(
-                height: SizeConfig.blockSizeHorizontal! * 8,
-                width: SizeConfig.blockSizeHorizontal! * 8,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color(0xFF29C08B),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => Profile_page(), // Pass the page widget class itself
                 ),
-                child: const Icon(
-                  Icons.privacy_tip,
-                  color: Colors.white,
-                ),
+              );
+            },
+          ),
+          Divider(
+            height: SizeConfig.blockSizeVertical! * 3,
+          ),
+          ListTile(
+            leading: Container(
+              height: SizeConfig.blockSizeHorizontal! * 8,
+              width: SizeConfig.blockSizeHorizontal! * 8,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFF29C08B),
               ),
-              title: Text(
-                'Pengaturan Privasi',
-                style: TextStyle(
-                  fontSize: SizeConfig.textType!.scale(24),
-                ),
+              child: const Icon(
+                Icons.settings,
+                color: Colors.white,
               ),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () {
-                // Navigate to the Privacy Policy page
-              },
             ),
-            Divider(
-              height: SizeConfig.blockSizeVertical! * 3,
-            ),
-            ListTile(
-              leading: Container(
-                height: SizeConfig.blockSizeHorizontal! * 8,
-                width: SizeConfig.blockSizeHorizontal! * 8,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color(0xFF29C08B),
-                ),
-                child: const Icon(
-                  Icons.logout,
-                  color: Colors.white,
-                ),
+            title: Text(
+              'Pengaturan',
+              style: TextStyle(
+                fontSize: 22,
               ),
-              title: Text(
-                'Keluar',
-                style: TextStyle(
-                  fontSize: SizeConfig.textType!.scale(24),
-                ),
+            ),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              // Navigate to the Settings page
+            },
+          ),
+          Divider(
+            height: SizeConfig.blockSizeVertical! * 3,
+          ),
+          ListTile(
+            leading: Container(
+              height: SizeConfig.blockSizeHorizontal! * 8,
+              width: SizeConfig.blockSizeHorizontal! * 8,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFF29C08B),
               ),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () async {
-                _showLogoutDialog();
-              },
+              child: const Icon(
+                Icons.policy,
+                color: Colors.white,
+              ),
             ),
-            Divider(
-              height: SizeConfig.blockSizeVertical! * 3,
+            title: Text(
+              'Syarat & ketentuan',
+              style: TextStyle(
+                fontSize: 22,
+              ),
             ),
-          ],
-        ),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              // Navigate to the Terms & Conditions page
+            },
+          ),
+          Divider(
+            height: SizeConfig.blockSizeVertical! * 3,
+          ),
+          ListTile(
+            leading: Container(
+              height: SizeConfig.blockSizeHorizontal! * 8,
+              width: SizeConfig.blockSizeHorizontal! * 8,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFF29C08B),
+              ),
+              child: const Icon(
+                Icons.privacy_tip,
+                color: Colors.white,
+              ),
+            ),
+            title: Text(
+              'Pengaturan Privasi',
+              style: TextStyle(
+                fontSize: 22,
+              ),
+            ),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              // Navigate to the Privacy Policy page
+            },
+          ),
+          Divider(
+            height: SizeConfig.blockSizeVertical! * 3,
+          ),
+          ListTile(
+            leading: Container(
+              height: SizeConfig.blockSizeHorizontal! * 8,
+              width: SizeConfig.blockSizeHorizontal! * 8,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFF29C08B),
+              ),
+              child: const Icon(
+                Icons.logout,
+                color: Colors.white,
+              ),
+            ),
+            title: Text(
+              'Keluar',
+              style: TextStyle(
+                fontSize: 22,
+              ),
+            ),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () async {
+              _showLogoutDialog();
+            },
+          ),
+          Divider(
+            height: SizeConfig.blockSizeVertical! * 3,
+          ),
+        ],
       ),
     );
   }

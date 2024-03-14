@@ -1,21 +1,22 @@
 import 'dart:async';
 
 import 'package:bcrypt/bcrypt.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:muhammadiyah/login.dart';
+import 'package:muhammadiyah/navbar.dart';
 import 'package:muhammadiyah/size_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ChangePassword extends StatefulWidget {
-  const ChangePassword({Key? key}) : super(key: key);
+class NewAccount extends StatefulWidget {
+  const NewAccount({super.key});
 
   @override
-  State<ChangePassword> createState() => _ChangePasswordState();
+  State<NewAccount> createState() => _NewAccountState();
 }
 
-class _ChangePasswordState extends State<ChangePassword> {
+class _NewAccountState extends State<NewAccount> {
   TextEditingController passController = TextEditingController();
   TextEditingController rePassController = TextEditingController();
 
@@ -23,14 +24,14 @@ class _ChangePasswordState extends State<ChangePassword> {
 
   double keyboardHeight = 0;
 
-  late Future<SharedPreferences> _sharedPreferences;
+  late Future<SharedPreferences> sharedPreferences;
 
   late StreamSubscription<bool> _keyboardVisibilitySubscription;
 
   @override
   void initState() {
     super.initState();
-    _sharedPreferences = SharedPreferences.getInstance();
+    sharedPreferences = SharedPreferences.getInstance();
     // Listen to keyboard visibility changes
     _keyboardVisibilitySubscription = KeyboardVisibilityController().onChange.listen((bool isVisible) {
       // Execute the function to handle keyboard visibility after the frame is built
@@ -62,7 +63,7 @@ class _ChangePasswordState extends State<ChangePassword> {
   }
 
   Future<void> _showBackDialog() async {
-    final SharedPreferences prefs = await _sharedPreferences;
+    final SharedPreferences prefs = await sharedPreferences;
 
     showDialog<void>(
       context: context,
@@ -82,10 +83,11 @@ class _ChangePasswordState extends State<ChangePassword> {
             TextButton(
               child: const Text('Ya'),
               onPressed: () async {
-                await prefs.remove("idPegawai");
+                await prefs.remove("idLogin");
                 passController.clear();
                 rePassController.clear();
 
+                Navigator.pop(context);
                 Navigator.pop(context);
                 Navigator.pushReplacement(
                   context,
@@ -109,7 +111,7 @@ class _ChangePasswordState extends State<ChangePassword> {
       body: SingleChildScrollView(
         padding: EdgeInsets.only(bottom: keyboardHeight),
         child: FutureBuilder<SharedPreferences>(
-          future: _sharedPreferences,
+          future: sharedPreferences,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(
@@ -137,16 +139,24 @@ class _ChangePasswordState extends State<ChangePassword> {
                         ),
                         Positioned(
                           top: SizeConfig.blockSizeVertical! * 10,
-                          child: Text(
-                              "Silahkan Masukkan Password Baru Anda!",
+                          child: Container(
+                            width: SizeConfig.blockSizeHorizontal! * 85, // Set a width for the text container
+                            child: Text(
+                              "Selamat Datang, Silahkan Mengganti Password Bawaan Anda Dengan Yang Baru!",
+                              textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
-                              )
+                              ),
+                              softWrap: true, // Allow text to wrap to a new line if it reaches the edge
+                            ),
                           ),
                         ),
                       ],
                     ),
+                  ),
+                  Container(
+                    height: SizeConfig.blockSizeVertical! * 2,
                   ),
                   fieldTitle("PASSWORD"),
                   customField("Masukkan Password Baru Anda", passController, true, Icons.key, isPassword: true),
@@ -233,10 +243,9 @@ class _ChangePasswordState extends State<ChangePassword> {
     );
   }
 
-  // Update the _updatePassword method to hash and store the password
   Future<void> _updatePassword() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? id = prefs.getString("idPegawai");
+    SharedPreferences prefs = await sharedPreferences;
+    String? id = prefs.getString("idLogin");
 
     if (id != null) {
       if (passController.text == rePassController.text) {
@@ -256,24 +265,37 @@ class _ChangePasswordState extends State<ChangePassword> {
           String docId = snapshot.docs.first.id;
 
           // Update the password field of the document with the hashed password
-          FirebaseFirestore.instance.collection('Pegawai').doc(docId).update({
+          await FirebaseFirestore.instance.collection('Pegawai').doc(docId).update({
             'password': hashedPassword,
-          }).then((value) {
-            // Update successful
-            prefs.remove("idPegawai");
-            passController.clear();
-            rePassController.clear();
-
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Login(),
-              ),
-            );
-          }).catchError((error) {
-            print("Failed to update password: $error");
-            // Handle error
           });
+
+          // Update successful
+          passController.clear();
+          rePassController.clear();
+
+          final DocumentSnapshot<Map<String, dynamic>> user = snapshot.docs.first;
+
+          // Get all user data
+          final String nama = user.get('nama');
+          final String email = user.get('email');
+          final String jabatan = user.get('jabatan');
+          final String departemen = user.get('departemen');
+          final String fotoUrl = user.get('foto');
+
+          SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+
+          // Save all user data in shared preferences
+          sharedPreferences.setString("nama", nama);
+          sharedPreferences.setString("email", email);
+          sharedPreferences.setString("jabatan", jabatan);
+          sharedPreferences.setString("departemen", departemen);
+          sharedPreferences.setString("fotoUrl", fotoUrl);
+
+          // Navigate to Home page if login is successful
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const Navbar()),
+          );
         } else {
           // Show error message if document with the given "id" is not found
           ScaffoldMessenger.of(context).showSnackBar(
@@ -286,7 +308,7 @@ class _ChangePasswordState extends State<ChangePassword> {
         // Show error message if passwords don't match
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Passwords do not match.'),
+            content: Text('Password Tidak Sama!'),
           ),
         );
       }
@@ -298,18 +320,11 @@ class _ChangePasswordState extends State<ChangePassword> {
       // Perform password change logic here
       if (passController.text == rePassController.text) {
         _updatePassword();
-        // If successful, navigate back to Login page
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const Login(),
-          ),
-        );
       } else {
         // Show error message if passwords don't match
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Passwords do not match.'),
+            content: Text('Password Tidak Sama!'),
           ),
         );
       }
@@ -340,12 +355,12 @@ class _ChangePasswordState extends State<ChangePassword> {
   }
 
   Widget customField(
-    String hint,
-    TextEditingController controller,
-    bool obscure,
-    IconData iconData,
-    {bool isPassword = false}
-    ) {
+      String hint,
+      TextEditingController controller,
+      bool obscure,
+      IconData iconData,
+      {bool isPassword = false}
+      ) {
     SizeConfig().init(context);
 
     return Container(
@@ -404,10 +419,10 @@ class _ChangePasswordState extends State<ChangePassword> {
   // Add validation logic for password length
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Password is required';
+      return 'Tidak Boleh Dikosongkan!';
     }
     if (value.length < 8) {
-      return 'Password must be at least 8 characters';
+      return 'Password Minimal 8 Karakter!';
     }
     return null;
   }
@@ -415,13 +430,13 @@ class _ChangePasswordState extends State<ChangePassword> {
   // Add validation logic to ensure re-entered password matches original password
   String? _validateRePassword(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Please re-enter your password';
+      return 'Masukkan Kembali Password Anda!';
     }
     if (value != passController.text) {
-      return 'Passwords do not match';
+      return 'Password Tidak Sama!';
     }
     if (value.length < 8) {
-      return 'Password must be at least 8 characters';
+      return 'Password Minimal 8 Karakter!';
     }
     return null;
   }
